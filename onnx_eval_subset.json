@@ -1,0 +1,5 @@
+{
+ "subset": "first 10000 official test samples",
+ "write_it_right.onnx": 0.7685,
+ "write_it_right_int8.onnx": 0.7592
+}

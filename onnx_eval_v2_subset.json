@@ -1,0 +1,26 @@
+{
+ "subset": "first 10000 official test samples",
+ "n": 10000,
+ "write_it_right_v2.onnx": {
+  "raw_acc": 0.8533,
+  "wordmode_letters_acc": 0.9477386934673366,
+  "wordmode_focus": {
+   "b": 0.9629629629629629,
+   "d": 0.9854368932038835,
+   "p": 0.9811320754716981,
+   "q": 0.872093023255814
+  },
+  "bytes": 995532
+ },
+ "write_it_right_v2_int8.onnx": {
+  "raw_acc": 0.854,
+  "wordmode_letters_acc": 0.9491457286432161,
+  "wordmode_focus": {
+   "b": 0.9703703703703703,
+   "d": 0.9854368932038835,
+   "p": 0.9874213836477987,
+   "q": 0.8604651162790697
+  },
+  "bytes": 259143
+ }
+}
