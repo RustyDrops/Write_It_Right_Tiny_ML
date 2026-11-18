@@ -1,5 +1,7 @@
 # Write It Right — Tiny ML
 
+![Write It Right — write a letter, hear it read back](promo/write-it-right-promo.png)
+
 A tiny handwriting-letter recognizer (0.25 MB, runs offline in a browser or on
 a microcontroller-class device) built to check the letters young writers mix
 up most: **b, d, p, q**. Trained only on public-domain data — no AI-generated
