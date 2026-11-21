@@ -1,8 +1,9 @@
 # Write It Right — Tiny ML
 
-![Write It Right — write a letter, hear it read back](promo/write-it-right-promo.png)
+![Write It Right — write a letter, hear it read back](promo/write-it-right-promo-v2.png)
 
-A tiny handwriting-letter recognizer (0.25 MB, runs offline in a browser or on
+A tiny handwriting-letter recognizer (the v8 hybrid deploys in 296,637 bytes —
+under 0.5 MB — and runs fully offline, in a browser or on
 a microcontroller-class device) built to check the letters young writers mix
 up most: **b, d, p, q**. No AI-generated labels and no frontier-model output
 in any training data; v2 is trained only on public-domain data, and v8's
@@ -86,6 +87,86 @@ int8 estimate (v2 int8 259,143 B + stroke engine ≈27 KB + routing code).
   v8 has been validated on children's handwriting; a kids'-handwriting
   evaluation is required before grading real children's work.
 
+## How this compares
+
+Published reference points for the image model's task, EMNIST Letters:
+
+- The dataset's original benchmark (Cohen et al. 2017,
+  [arXiv:1702.05373](https://arxiv.org/pdf/1702.05373)) reports **85.15%**
+  as its best Letters result.
+- A recent purpose-built CNN (CSA-CNN, *Mathematics* 2023,
+  [paper](https://mdpi-res.com/d_attachment/mathematics/mathematics-11-01141/article_deploy/mathematics-11-01141.pdf?version=1677251119))
+  reports **93.95%** test accuracy on EMNIST Letters at ~242k parameters.
+- This project's image model (v2, 248,958 params) scores **95.24% word-mode**
+  on the full official EMNIST test — above those ranges, with an explicit
+  caveat: word-mode is letters only with case merged (digits excluded as
+  candidate answers), an easier protocol than the standard 26/62-class
+  splits, so this is **not** a like-for-like state-of-the-art claim.
+
+The stroke engine has no comparable leaderboard: it is scored on real pen
+data (UJI / Character Trajectories-style exams), for which there is no
+standard public benchmark. Its exam numbers are reported in the v8 section
+above with their protocols, and the full per-letter results are in
+`hybrid-v8/results_v8_h1.json`.
+
+## Use it yourself
+
+There is no browser demo in this repo — what ships is the model, the
+evaluation code of record, and the routing/featurization code, all usable
+directly:
+
+### Image mode (the v2 ONNX model)
+
+`write_it_right_v2_int8.onnx` (259,143 B) runs with
+[onnxruntime](https://onnxruntime.ai/) anywhere. Input is one tensor named
+`input`, shape `(N, 1, 28, 28)`, float32, white-on-black, pixels scaled to
+0–1. EMNIST-style images are stored transposed; transpose to upright first
+(the eval scripts in this repo do `np.transpose(X, (0, 2, 1))`). Output is
+62 logits in the order given by `labels.json` (0–9, A–Z, a–z):
+
+```python
+import json
+import numpy as np
+import onnxruntime as ort
+
+labels = json.load(open("labels.json"))  # 62 classes
+sess = ort.InferenceSession("write_it_right_v2_int8.onnx",
+                            providers=["CPUExecutionProvider"])
+x = np.zeros((1, 1, 28, 28), dtype=np.float32)  # your letter image, /255
+logits = sess.run(None, {"input": x})[0]
+print(labels[int(logits.argmax(1)[0])])  # raw 62-class answer
+```
+
+For the product's word-mode answer (letters only, case doesn't matter),
+restrict the logits to the letter classes (indices 10–61) and merge case:
+
+```python
+letter_idx = np.array(list(range(10, 62)))
+cls = int(letter_idx[logits[:, letter_idx].argmax(1)[0]])
+letter = "abcdefghijklmnopqrstuvwxyz"[(cls - 10) % 26]
+```
+
+### Stroke mode (the v8 hybrid)
+
+If your writing surface captures pen points, prefer the stroke path — it
+is the v8 hybrid's primary mode (91.52% on the v8 exam, a→q = 0.00%):
+
+- Featurize a stroke stream (a list of strokes, each a list of (x, y)
+  pen points) with `featurize(strokes, npts=12)` from `stroke/common.py`
+  — 12 points × (x, y, dx, dy, pen-lift).
+- Run the `StrokeNet` class from `stroke/train_stroke.py` with the H1
+  weights in `hybrid-v8/stroke_engine_h1_model.pt`; its output is a
+  26-way letter prediction.
+- Routing rule (the hybrid's only rule, implemented in
+  `hybrid-v8/eval_v8_h1.py`): a sample with a real pen stream (any stroke
+  of ≥2 points) is decided by the stroke engine; anything else — image
+  only, empty, or single-point streams — falls back to the v2 image
+  model above, whose output it reproduces exactly.
+
+The eval scripts (`hybrid-v8/eval_v8.py`, `hybrid-v8/eval_v8_h1.py`) are
+the code of record for the v8 numbers; the exam sample data itself is not
+redistributed (see PROVENANCE.md for each corpus's terms).
+
 ## Honest limits
 
 EMNIST is **adult** handwriting. This model has not been validated on
@@ -108,5 +189,10 @@ using it to grade real children's work. q remains the weakest letter.
   (`common.py`, `train_stroke.py`)
 - `stroke-data-hunt/` — H1 training-data design and license record
   (`DESIGN.md`, `SOURCES.md`)
+- `labels.json` — the 62 output class labels for the image model, in
+  model order
+- `promo/write-it-right-promo-v2.png` — the card at the top of this
+  README (v8 hybrid state); `promo/build_promo.py` regenerates it, and
+  `promo/write-it-right-promo.png` is the earlier v2-era card
 - Exam sample data itself is not redistributed; see PROVENANCE.md for
   each corpus's terms.
